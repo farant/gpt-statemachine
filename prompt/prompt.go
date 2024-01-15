@@ -1,4 +1,4 @@
-package main
+package prompt
 
 import (
 	"bytes"
@@ -21,21 +21,21 @@ type Prompt[Output any, Input any] struct {
 }
 
 type RunOptions[Output any, Input any] struct {
-	on_json_array_progress func([]Output, string)
-	arguments              Input
+	On_json_array_progress func([]Output, string)
+	Arguments              Input
 }
 
 type PromptResult[Output any] struct {
-	parsed_results_array []Output
-	parsed_results_json  string
-	prompt_text          string
-	response_text        string
+	Parsed_results_array []Output
+	Parsed_results_json  string
+	Prompt_text          string
+	Response_text        string
 }
 
 func (p Prompt[Output, Input]) Run(client *openai.Client, options RunOptions[Output, Input]) PromptResult[Output] {
 	streaming_response := make(chan string)
 
-	if options.on_json_array_progress != nil {
+	if options.On_json_array_progress != nil {
 		if !p.Array_of_results {
 			panic(fmt.Errorf("on_json_array_progress requires Array_of_results to be true"))
 		}
@@ -56,7 +56,7 @@ func (p Prompt[Output, Input]) Run(client *openai.Client, options RunOptions[Out
 					return
 				}
 
-				options.on_json_array_progress(response.Results, total_progress)
+				options.On_json_array_progress(response.Results, total_progress)
 			}
 		}()
 	}
@@ -66,8 +66,8 @@ func (p Prompt[Output, Input]) Run(client *openai.Client, options RunOptions[Out
 	raw_response := run_prompt(prompt, client, streaming_response)
 
 	result := PromptResult[Output]{
-		prompt_text:   prompt,
-		response_text: raw_response,
+		Prompt_text:   prompt,
+		Response_text: raw_response,
 	}
 
 	results_json := besteffortjson.Best_effort_json_parse(raw_response)
@@ -80,8 +80,8 @@ func (p Prompt[Output, Input]) Run(client *openai.Client, options RunOptions[Out
 		log.Println("JSON parse error: ", err)
 	}
 
-	result.parsed_results_array = response.Results
-	result.parsed_results_json = results_json
+	result.Parsed_results_array = response.Results
+	result.Parsed_results_json = results_json
 
 	return result
 }
@@ -104,7 +104,7 @@ func (p Prompt[Output, Input]) Generate_prompt(options RunOptions[Output, Input]
 	prompt := p.Prompt
 	re := regexp.MustCompile(`{{(\w+)}}`)
 	matches := re.FindAllStringSubmatch(prompt, -1)
-	arguments_map := p.StructToMap(options.arguments)
+	arguments_map := p.StructToMap(options.Arguments)
 	for _, match := range matches {
 		keyword := match[1]
 		if val, ok := arguments_map[match[1]]; ok {
