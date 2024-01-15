@@ -66,24 +66,27 @@ func main() {
 		Array_of_results: true,
 	}
 
+	print_places := func(places []Place) {
+		for _, place := range places {
+			fmt.Printf("\n%s (%f, %f)\n", place.Name, place.Coordinates.Latitude, place.Coordinates.Longitude)
+			fmt.Println("\nFamous people:")
+			for _, person := range place.FamousPeople {
+				fmt.Printf("\n- %s (%s - %s)\n", person.Name, person.YearOfBirth, person.YearOfDeath)
+				fmt.Println("  Events:")
+				for _, event := range person.Events {
+					fmt.Printf("  - %s (%s)\n", event.Description, event.Year)
+				}
+			}
+		}
+	}
+
 	result := historical_events.Run(client, RunOptions[Place, Arguments]{
 		arguments: Arguments{
 			Region: combined_args,
 		},
 		on_json_array_progress: func(progress []Place, raw_string string) {
 			fmt.Print("\033[H\033[2J")
-
-			for _, place := range progress {
-				fmt.Printf("\n%s (%f, %f)\n", place.Name, place.Coordinates.Latitude, place.Coordinates.Longitude)
-				fmt.Println("\nFamous people:")
-				for _, person := range place.FamousPeople {
-					fmt.Printf("\n- %s (%s - %s)\n", person.Name, person.YearOfBirth, person.YearOfDeath)
-					fmt.Println("  Events:")
-					for _, event := range person.Events {
-						fmt.Printf("  - %s (%s)\n", event.Description, event.Year)
-					}
-				}
-			}
+			print_places(progress)
 		},
 	})
 
@@ -91,4 +94,6 @@ func main() {
 	fmt.Println(result.prompt_text)
 	fmt.Printf("\n\nRESPONSE:\n\n")
 	fmt.Println(result.parsed_results_json)
+	fmt.Printf("\n\nPARSED:\n\n")
+	print_places(result.parsed_results_array)
 }
