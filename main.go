@@ -48,7 +48,7 @@ func main() {
 	historical_events := Prompt[HistoricalEvent, Arguments]{
 		Prompt: `
 		Let me know about ten surprising historical events related to the history of {{Subject}}.
-		Please avoid any non-ASCII characters in the output. Use negative integers for BC & positive for AD but still send the number as a string.
+		Use negative integers for BC & positive for AD but still send the number as a string.
 		`,
 		Arguments:        Arguments{},
 		Json_output:      HistoricalEvent{},

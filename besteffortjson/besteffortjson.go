@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func parse_value(current_index int, json_string string) (interface{}, int) {
+func parse_value(current_index int, json_string []rune) (interface{}, int) {
 	var result interface{}
 
 	final_index := current_index
@@ -43,7 +43,7 @@ func parse_value(current_index int, json_string string) (interface{}, int) {
 	return result, final_index
 }
 
-func parse_object(current_index int, json_string string) (map[string]interface{}, int) {
+func parse_object(current_index int, json_string []rune) (map[string]interface{}, int) {
 	result := make(map[string]interface{})
 	final_index := current_index
 
@@ -86,7 +86,7 @@ func parse_object(current_index int, json_string string) (map[string]interface{}
 	return result, final_index
 }
 
-func parse_array(current_index int, json_string string) ([]interface{}, int) {
+func parse_array(current_index int, json_string []rune) ([]interface{}, int) {
 	var result []interface{}
 	final_index := current_index
 
@@ -113,12 +113,13 @@ func parse_array(current_index int, json_string string) ([]interface{}, int) {
 	return result, final_index
 }
 
-func parse_string(current_index int, json_string string) (string, int) {
+func parse_string(current_index int, json_string []rune) (string, int) {
 	var result string
 	final_index := current_index
 	state := "starting_string"
+
 	for i := current_index; i < len(json_string); i++ {
-		char := rune(json_string[i])
+		char := json_string[i]
 		switch state {
 		case "starting_string":
 			if char == '"' {
@@ -154,7 +155,7 @@ func parse_string(current_index int, json_string string) (string, int) {
 	return result, final_index
 }
 
-func parse_number_or_boolean_or_null(current_index int, json_string string) (interface{}, int) {
+func parse_number_or_boolean_or_null(current_index int, json_string []rune) (interface{}, int) {
 	var result interface{}
 	final_index := current_index
 
@@ -229,7 +230,7 @@ func Best_effort_json_parse(in_progress string) string {
 	}
 	in_progress = new_in_progress
 
-	result, _ := parse_value(0, in_progress)
+	result, _ := parse_value(0, []rune(in_progress))
 
 	in_progress_result, err := json.Marshal(result)
 	if err != nil {

@@ -18,11 +18,15 @@ func TestParse_string(t *testing.T) {
 		{name: "String with escaped quote", input: `"hel\"lo`, expected: `hel"lo`},
 		{name: "String with newline", input: `"hel\nlo`, expected: "hel\nlo"},
 		{name: "String with escaped newline", input: `"hel\\nlo`, expected: "hel\\nlo"},
+		{name: "String with accented letter", input: `"héllo"`, expected: "héllo"},
+		{name: "String with accented vowel", input: `"hëllò"`, expected: "hëllò"},
+		{name: "String with special character", input: `"hellö"`, expected: "hellö"},
+		{name: "String with unsupported unicode escape sequence", input: `"hell\u00F6"`, expected: "hell\\u00F6"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, _ := parse_string(0, tc.input)
+			result, _ := parse_string(0, []rune(tc.input))
 			if result != tc.expected {
 				t.Errorf("Expected %s, got %s", tc.expected, result)
 			}
@@ -50,7 +54,7 @@ func TestParse_number_or_boolean_or_null(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, _ := parse_number_or_boolean_or_null(0, tc.input)
+			result, _ := parse_number_or_boolean_or_null(0, []rune(tc.input))
 			if result != tc.expected {
 				resultType := reflect.TypeOf(result)
 				expectedType := reflect.TypeOf(tc.expected)
@@ -87,11 +91,16 @@ func TestParse_array(t *testing.T) {
 				map[string]interface{}{"name": "george"},
 			},
 		},
+		{
+			name:     "Array with strings containing accent characters",
+			input:    `["héllo", "hëllò", "hellö"]`,
+			expected: []interface{}{"héllo", "hëllò", "hellö"},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, _ := parse_array(0, tc.input)
+			result, _ := parse_array(0, []rune(tc.input))
 			if !reflect.DeepEqual(result, tc.expected) {
 				expectedJson, _ := json.Marshal(tc.expected)
 				resultJson, _ := json.Marshal(result)
