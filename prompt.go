@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -20,23 +21,19 @@ type Prompt[Output any, Input any] struct {
 }
 
 type RunOptions[Output any, Input any] struct {
-	on_response_progress   func(string)
-	on_json_array_progress func([]Output)
+	on_json_array_progress func([]Output, string)
 	arguments              Input
 }
 
-func (p Prompt[Output, Input]) Run(client *openai.Client, options RunOptions[Output, Input]) string {
-	streaming_response := make(chan string)
+type PromptResult[Output any] struct {
+	parsed_results_array []Output
+	parsed_results_json  string
+	prompt_text          string
+	response_text        string
+}
 
-	/*
-		if options.on_response_progress != nil {
-			go func() {
-				for response := range streaming_response {
-					options.on_response_progress(response)
-				}
-			}()
-		}
-	*/
+func (p Prompt[Output, Input]) Run(client *openai.Client, options RunOptions[Output, Input]) PromptResult[Output] {
+	streaming_response := make(chan string)
 
 	if options.on_json_array_progress != nil {
 		if !p.Array_of_results {
@@ -59,14 +56,34 @@ func (p Prompt[Output, Input]) Run(client *openai.Client, options RunOptions[Out
 					return
 				}
 
-				options.on_json_array_progress(response.Results)
+				options.on_json_array_progress(response.Results, total_progress)
 			}
 		}()
 	}
 
 	prompt := p.Generate_prompt(options)
 
-	return run_prompt(prompt, client, streaming_response)
+	raw_response := run_prompt(prompt, client, streaming_response)
+
+	result := PromptResult[Output]{
+		prompt_text:   prompt,
+		response_text: raw_response,
+	}
+
+	results_json := besteffortjson.Best_effort_json_parse(raw_response)
+
+	var response struct {
+		Results []Output `json:"results"`
+	}
+	err := json.Unmarshal([]byte(results_json), &response)
+	if err != nil {
+		log.Println("JSON parse error: ", err)
+	}
+
+	result.parsed_results_array = response.Results
+	result.parsed_results_json = results_json
+
+	return result
 }
 
 func (p Prompt[Output, Input]) StructToMap(obj interface{}) map[string]interface{} {
@@ -171,5 +188,8 @@ func (p Prompt[Output, Input]) Struct_to_prompt_schema(struct_type interface{}, 
 
 	output += "\n}"
 
+	var prettyJSON bytes.Buffer
+	json.Indent(&prettyJSON, []byte(output), "", "\t")
+	output = prettyJSON.String()
 	return output
 }

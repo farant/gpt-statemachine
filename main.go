@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -13,9 +11,9 @@ import (
 
 // DONE: arguments to the predefined prompt, how do you require the arguments?
 // DONE: JSON structure of output, dynamic return type of argument
-// TODO: Make unicode characters work ok
+// DONE: Include the output struct in the prompt
+// DONE: Make unicode characters work ok
 // TODO: Make it work with arrays of ints?
-// TODO: Include the output struct in the prompt
 
 func main() {
 	args := os.Args[1:]
@@ -35,61 +33,62 @@ func main() {
 
 	client := openai.NewClient(api_key)
 
-	type HistoricalEvent struct {
-		Description string   `json:"description"`
-		Year        string   `json:"year"`
-		People      []string `json:"people"`
+	type Place struct {
+		Name        string `json:"name"`
+		Coordinates struct {
+			Latitude  float64 `json:"latitude"`
+			Longitude float64 `json:"longitude"`
+		} `json:"coordinates"`
+		FamousPeople []struct {
+			Name        string `json:"name"`
+			YearOfBirth string `json:"year_of_birth"`
+			YearOfDeath string `json:"year_of_death"`
+			Events      []struct {
+				Description string `json:"description"`
+				Year        string `json:"year"`
+			}
+		} `json:"famous_people"`
 	}
 
 	type Arguments struct {
-		Subject string
+		Region string
 	}
 
-	historical_events := Prompt[HistoricalEvent, Arguments]{
+	historical_events := Prompt[Place, Arguments]{
 		Prompt: `
-		Let me know about ten surprising historical events related to the history of {{Subject}}.
-		Use negative integers for BC & positive for AD but still send the number as a string.
+		Please tell me about 6 locations in {{Region}}.
+
+		Along with each location tell me about the people who are famous and connected to the place
+		with a few historical events related to that person (other than birth and death).
 		`,
 		Arguments:        Arguments{},
-		Json_output:      HistoricalEvent{},
+		Json_output:      Place{},
 		Array_of_results: true,
 	}
 
-	historical_events.Run(client, RunOptions[HistoricalEvent, Arguments]{
+	result := historical_events.Run(client, RunOptions[Place, Arguments]{
 		arguments: Arguments{
-			Subject: combined_args,
+			Region: combined_args,
 		},
-		on_json_array_progress: func(progress []HistoricalEvent) {
+		on_json_array_progress: func(progress []Place, raw_string string) {
 			fmt.Print("\033[H\033[2J")
 
-			events := []string{}
-			people := []string{}
-
-			sort.Slice(progress, func(i, j int) bool {
-				yearI, errI := strconv.Atoi(progress[i].Year)
-				yearJ, errJ := strconv.Atoi(progress[j].Year)
-				if errI != nil || errJ != nil {
-					return progress[i].Year < progress[j].Year
+			for _, place := range progress {
+				fmt.Printf("\n%s (%f, %f)\n", place.Name, place.Coordinates.Latitude, place.Coordinates.Longitude)
+				fmt.Println("\nFamous people:")
+				for _, person := range place.FamousPeople {
+					fmt.Printf("\n- %s (%s - %s)\n", person.Name, person.YearOfBirth, person.YearOfDeath)
+					fmt.Println("  Events:")
+					for _, event := range person.Events {
+						fmt.Printf("  - %s (%s)\n", event.Description, event.Year)
+					}
 				}
-				return yearI < yearJ
-			})
-
-			for _, event := range progress {
-				events = append(events, fmt.Sprintf("%5s: %s", event.Year, event.Description))
-
-				people = append(people, event.People...)
-			}
-
-			//sort.Strings(events)
-
-			fmt.Println(strings.Join(events, "\n"))
-
-			people = Deduplicate(people)
-			sort.Strings(people)
-			fmt.Println("\nPeople involved:")
-			for _, person := range people {
-				fmt.Println("- " + person)
 			}
 		},
 	})
+
+	fmt.Printf("PROMPT:\n\n")
+	fmt.Println(result.prompt_text)
+	fmt.Printf("\n\nRESPONSE:\n\n")
+	fmt.Println(result.parsed_results_json)
 }

@@ -213,13 +213,59 @@ func TestBest_effort_json_parse(t *testing.T) {
 			`,
 			`{"fact":["one","two"],"results":[{"country":"usa","name":"john"}]}`,
 		},
+		{
+			name: "Object with result key as Array of Place struct",
+			inProgressStr: `
+			{ "result": [{
+				"name": "Place1",
+				"Coordinates": {
+					"Latitude": 12.34,
+					"Longitude": 56.78
+				},
+				"FamousPeople": [{
+					"Name": "Person1",
+					"YearOfBirth": "2000",
+					"YearOfDeath": "2080",
+			`,
+			expected: `{
+				"result": [
+					{
+						"Coordinates": {
+							"Latitude": 12.34,
+							"Longitude": 56.78
+						},
+						"FamousPeople": [
+							{
+								"Name": "Person1",
+								"YearOfBirth": "2000",
+								"YearOfDeath": "2080"
+							}
+						],
+						"name": "Place1"
+					}
+				]
+			}`,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			inProgress := Best_effort_json_parse(tc.inProgressStr)
-			if inProgress != tc.expected {
-				t.Errorf("\n\033[32m%s\033[0m\nExpected %v, got %v", tc.name, tc.expected, inProgress)
+
+			// Normalize JSON strings
+			var inProgressObj, expectedObj interface{}
+			json.Unmarshal([]byte(inProgress), &inProgressObj)
+			json.Unmarshal([]byte(tc.expected), &expectedObj)
+
+			inProgressNormalized, _ := json.Marshal(inProgressObj)
+			expectedNormalized, _ := json.Marshal(expectedObj)
+
+			if string(inProgressNormalized) != string(expectedNormalized) {
+				// Pretty print JSON strings
+				inProgressPretty, _ := json.MarshalIndent(inProgressObj, "", "  ")
+				expectedPretty, _ := json.MarshalIndent(expectedObj, "", "  ")
+
+				t.Errorf("expected %s, got %s", string(expectedPretty), string(inProgressPretty))
 			}
 		})
 	}
