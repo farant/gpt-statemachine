@@ -9,83 +9,95 @@ import (
 
 func TestParse_string(t *testing.T) {
 	testCases := []struct {
+		name     string
 		input    string
 		expected string
 	}{
-		{`"hello"`, "hello"},
-		{`"hello`, "hello"},
-		{`"hel\"lo`, `hel"lo`},
-		{`"hel\nlo`, "hel\nlo"},
-		{`"hel\\nlo`, "hel\\nlo"},
+		{name: "Basic string", input: `"hello"`, expected: "hello"},
+		{name: "String without closing quote", input: `"hello`, expected: "hello"},
+		{name: "String with escaped quote", input: `"hel\"lo`, expected: `hel"lo`},
+		{name: "String with newline", input: `"hel\nlo`, expected: "hel\nlo"},
+		{name: "String with escaped newline", input: `"hel\\nlo`, expected: "hel\\nlo"},
 	}
 
 	for _, tc := range testCases {
-		result, _ := parse_string(0, tc.input)
-		if result != tc.expected {
-			t.Errorf("Expected %s, got %s", tc.expected, result)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, _ := parse_string(0, tc.input)
+			if result != tc.expected {
+				t.Errorf("Expected %s, got %s", tc.expected, result)
+			}
+		})
 	}
 }
 
 func TestParse_number_or_boolean_or_null(t *testing.T) {
 	testCases := []struct {
+		name     string
 		input    string
 		expected interface{}
 	}{
-		{`true`, true},
-		{`false`, false},
-		{`null`, nil},
-		{`123`, 123},
-		{`123.456`, 123.456},
-		{`-123.456`, -123.456},
-		{`0.456`, 0.456},
-		{`-0.456`, -0.456},
-		{`0`, 0},
-		{`-0`, 0},
+		{name: "Parse true", input: `true`, expected: true},
+		{name: "Parse false", input: `false`, expected: false},
+		{name: "Parse null", input: `null`, expected: nil},
+		{name: "Parse positive integer", input: `123`, expected: 123},
+		{name: "Parse positive float", input: `123.456`, expected: 123.456},
+		{name: "Parse negative float", input: `-123.456`, expected: -123.456},
+		{name: "Parse positive float less than 1", input: `0.456`, expected: 0.456},
+		{name: "Parse negative float less than 1", input: `-0.456`, expected: -0.456},
+		{name: "Parse zero", input: `0`, expected: 0},
+		{name: "Parse negative zero", input: `-0`, expected: 0},
 	}
+
 	for _, tc := range testCases {
-		result, _ := parse_number_or_boolean_or_null(0, tc.input)
-		if result != tc.expected {
-			resultType := reflect.TypeOf(result)
-			expectedType := reflect.TypeOf(tc.expected)
-			fmt.Printf("Result type: %s, Expected type: %s\n", resultType, expectedType)
-			t.Errorf("Expected %v, got %v", tc.expected, result)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, _ := parse_number_or_boolean_or_null(0, tc.input)
+			if result != tc.expected {
+				resultType := reflect.TypeOf(result)
+				expectedType := reflect.TypeOf(tc.expected)
+				fmt.Printf("Result type: %s, Expected type: %s\n", resultType, expectedType)
+				t.Errorf("Expected %v, got %v", tc.expected, result)
+			}
+		})
 	}
 }
 
 func TestParse_array(t *testing.T) {
 	testCases := []struct {
+		name     string
 		input    string
 		expected []interface{}
 	}{
-		{`[ 1 , 2 , 3 ]`, []interface{}{1, 2, 3}},
-		{`[ 1 , 2234 , 3 ]`, []interface{}{1, 2234, 3}},
-		{`[1,2,3]`, []interface{}{1, 2, 3}},
-		{`[1,2,3,]`, []interface{}{1, 2, 3}},
-		{`[1,"2"]`, []interface{}{1, "2"}},
-		{`[1, 2.1  , "123`, []interface{}{1, 2.1, "123"}},
-		{`["abc", "123]`, []interface{}{"abc", "123]"}},
-		{`[   true, false ]`, []interface{}{true, false}},
-		{`[   true, false, t`, []interface{}{true, false, true}},
-		{`[   null, false, n `, []interface{}{nil, false, nil}},
-		{`["abc", ["123`, []interface{}{"abc", []interface{}{"123"}}},
+		{name: "Array with integers", input: `[ 1 , 2 , 3 ]`, expected: []interface{}{1, 2, 3}},
+		{name: "Array with large integer", input: `[ 1 , 2234 , 3 ]`, expected: []interface{}{1, 2234, 3}},
+		{name: "Array without spaces", input: `[1,2,3]`, expected: []interface{}{1, 2, 3}},
+		{name: "Array with trailing comma", input: `[1,2,3,]`, expected: []interface{}{1, 2, 3}},
+		{name: "Array with string", input: `[1,"2"]`, expected: []interface{}{1, "2"}},
+		{name: "Array with incomplete string", input: `[1, 2.1  , "123`, expected: []interface{}{1, 2.1, "123"}},
+		{name: "Array with incomplete string and bracket", input: `["abc", "123]`, expected: []interface{}{"abc", "123]"}},
+		{name: "Array with booleans", input: `[   true, false ]`, expected: []interface{}{true, false}},
+		{name: "Array with incomplete boolean", input: `[   true, false, t`, expected: []interface{}{true, false, true}},
+		{name: "Array with null and incomplete null", input: `[   null, false, n `, expected: []interface{}{nil, false, nil}},
+		{name: "Array with nested array", input: `["abc", ["123`, expected: []interface{}{"abc", []interface{}{"123"}}},
 		{
-			`[ { "name": "jim" }, { "name": "cathy" }, { "name": "george`,
-			[]interface{}{
+			name:  "Array with objects",
+			input: `[ { "name": "jim" }, { "name": "cathy" }, { "name": "george`,
+			expected: []interface{}{
 				map[string]interface{}{"name": "jim"},
 				map[string]interface{}{"name": "cathy"},
 				map[string]interface{}{"name": "george"},
 			},
 		},
 	}
+
 	for _, tc := range testCases {
-		result, _ := parse_array(0, tc.input)
-		if !reflect.DeepEqual(result, tc.expected) {
-			expectedJson, _ := json.Marshal(tc.expected)
-			resultJson, _ := json.Marshal(result)
-			t.Errorf("Expected %s, got %s", string(expectedJson), string(resultJson))
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, _ := parse_array(0, tc.input)
+			if !reflect.DeepEqual(result, tc.expected) {
+				expectedJson, _ := json.Marshal(tc.expected)
+				resultJson, _ := json.Marshal(result)
+				t.Errorf("Expected %s, got %s", string(expectedJson), string(resultJson))
+			}
+		})
 	}
 }
 
@@ -195,9 +207,11 @@ func TestBest_effort_json_parse(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		inProgress := Best_effort_json_parse(tc.inProgressStr)
-		if inProgress != tc.expected {
-			t.Errorf("\n\033[32m%s\033[0m\nExpected %v, got %v", tc.name, tc.expected, inProgress)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			inProgress := Best_effort_json_parse(tc.inProgressStr)
+			if inProgress != tc.expected {
+				t.Errorf("\n\033[32m%s\033[0m\nExpected %v, got %v", tc.name, tc.expected, inProgress)
+			}
+		})
 	}
 }

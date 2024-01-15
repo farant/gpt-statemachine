@@ -101,6 +101,7 @@ func (p Prompt[Output, Input]) Generate_prompt(options RunOptions[Output, Input]
 	if p.Array_of_results {
 		prompt += "In your response send me an array of JSON objects. Don't include any markdown block syntax."
 		prompt += "Here's an example result to match:\n\n"
+		counter := 1
 		prompt += strings.TrimSpace(fmt.Sprintf(`
 {
 	"results": [
@@ -108,24 +109,24 @@ func (p Prompt[Output, Input]) Generate_prompt(options RunOptions[Output, Input]
 		// etc.
 	]
 		}
-			`, p.Struct_to_prompt_schema(p.Json_output)))
+			`, p.Struct_to_prompt_schema(p.Json_output, &counter)))
 	} else {
 		prompt += "In your response send me a JSON object. Don't include any markdown block syntax.\n"
 		prompt += "Here's an example result to match:\n\n"
-		prompt += p.Struct_to_prompt_schema(p.Json_output)
+		counter := 1
+		prompt += p.Struct_to_prompt_schema(p.Json_output, &counter)
 	}
 
 	return prompt
 }
 
-func (p Prompt[Output, Input]) Struct_to_prompt_schema(struct_type interface{}) string {
+func (p Prompt[Output, Input]) Struct_to_prompt_schema(struct_type interface{}, something_counter *int) string {
 	v := reflect.ValueOf(struct_type)
 	typeOfS := v.Type()
 
-	something_counter := 1
 	next_something := func() string {
-		result := "something" + fmt.Sprintf("%d", something_counter)
-		something_counter++
+		result := "something" + fmt.Sprintf("%d", *something_counter)
+		(*something_counter)++
 		return result
 	}
 
@@ -135,12 +136,20 @@ func (p Prompt[Output, Input]) Struct_to_prompt_schema(struct_type interface{}) 
 		var example_value string
 		switch field.Kind() {
 		case reflect.Slice:
-			example_value = fmt.Sprintf("[\"%s\", \"%s\"]", next_something(), next_something())
+			elemType := field.Type().Elem()
+			if elemType.Kind() == reflect.Int {
+				example_value = "[123, 456]"
+			} else if elemType.Kind() == reflect.Struct {
+				example_value = fmt.Sprintf("[%s, %s]", p.Struct_to_prompt_schema(reflect.New(elemType).Elem().Interface(), something_counter), p.Struct_to_prompt_schema(reflect.New(elemType).Elem().Interface(), something_counter))
+			} else {
+				example_value = fmt.Sprintf("[\"%s\", \"%s\"]", next_something(), next_something())
+			}
+		case reflect.Struct:
+			example_value = p.Struct_to_prompt_schema(field.Interface(), something_counter)
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			example_value = "\"123\""
+			example_value = "123"
 		case reflect.Float32, reflect.Float64:
-			example_value = "\"123.0\""
-
+			example_value = "123.0"
 		default:
 			example_value = fmt.Sprintf("\"%s\"", next_something())
 		}
