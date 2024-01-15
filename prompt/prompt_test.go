@@ -169,7 +169,7 @@ func TestGenerate_prompt(t *testing.T) {
 	}
 
 	prompt := p.Generate_prompt(RunOptions[ParentStruct, Arguments]{
-		arguments: Arguments{
+		Arguments: Arguments{
 			Fact: "something",
 		},
 	})
